@@ -517,4 +517,95 @@ namespaces
 		kubectl get pods --all-namespaces
 		
 	To create a namespace 
+		kubectl create namespace <ns_name>
+		
+	To create k8s object in a namespace 
+		1. in the spec file 
+			metadata: 
+				namespace: <ns_name>
+				
+		2. Using the apply command 
+			kubectl apply -n <ns_name> -f <spec>.yml
+		
+		Note: what if we use both inside specfile and also in apply command 
+				- apply command check and compares the namespace and wont allow to create the obejct if the namespace is different.
 
+Assignment: try exec to a pod 				
+	
+	- pod to pod communication is open if the 2 pods are in the same namespace.	
+	- If the pods are in different namespace by default they can't communicate we need a service object for this.
+	
+
+
+How a microservice will communicate with other microservice
+What is service discovery in k8s 
+	
+Service discovery 
+	There are 2 ways of dicovering a service in k8s 
+	
+		1. Services 
+			 we can use the full name of service to discovery a microservice (pod).
+			 	service/<service_name>
+				
+		2. DNS 
+			- DNS server is added to the cluster in order to watch the k8s service request.
+			- API server will create DNS records for each new service.
+			- Record A type is used in k8s service discovery and this DNS is created on service
+			  and pod objects.
+			
+			syntax of k8s DNS 
+				<object_name>.<namepsace_name>.<object_type>.cluster.local
+				
+				ex: np-ip-app.default.svc.cluster.local
+		
+		3. ENV variables 
+			- which ever the pod that runs on a node, k8s adds environment variables for 
+			  each of them to identify the service running in it.
+			  
+		https://dev.to/narasimha1997/communication-between-microservices-in-a-kubernetes-cluster-1n41	
+
+
+
+pod phases / status / states / life cycle 
+	1. pending 
+		- This is the status of pod when pod will be waiting for k8s cluster to accept it.
+		- pod will be downloading the image from registry.
+		- pod wiil be in pending till the scheduler assigns a node to the pod.
+	
+	2. Running 
+		- The pod has been assigned a node and all the containers inside the pod is running.
+		- Atleast one container is in running state and others in starting or restarting state then pod will show 
+		  running state.
+
+	3. Failed 
+		- All the container in the pod should not be running and any one container being terminated in failure.
+		
+	4. Succeeded 
+		- ALl the containers in pod have been terminated successfully/gracefully.
+		
+	5. Unknown 
+		- For some reason the state of the pod could not be obtaied by API server.
+		- The status may occur when k8s cannot communicate with the kubelet or the worker node.
+	
+	
+terminating 
+	- when pod is being deleted.
+	
+container status 
+	Running 
+		- Means container is running the process inside without any error 
+	Terminated
+		- Process inside the container has completed the execution or may be failed due to some error.
+	waiting 
+		- If a container is not running or neither in terminated state.
+	
+Common errors
+	ImagePullBackOff 
+		- Docker image registry is not accessible.
+		- Image name / tag version specified is incorrent.
+	CrashLoopBackOff
+        - We get this error when probe check has failed.
+		- Docker image may be faulty.
+	RunContainerError 
+		- Configmap / secrets are missing. 
+		- Volumes are not available 
