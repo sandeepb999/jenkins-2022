@@ -1,0 +1,25 @@
+pipeline {
+    agent any
+        stages {
+            stage ('Clone') {
+                steps {
+                    git branch: 'main', url: ''
+                        
+                }  
+                    
+            }
+            stage ("Build") {
+                steps {
+                    sh '''pwd
+                    cd  Docker/app/maven
+                    docker build -t  sandeshhm/my-app-1.0 .'''
+                }
+            }
+            stage ("Docker Run" ) {
+                steps {
+                    sh ''' docker run -it -d -p 8062:8080  sandeshhm/my-app-1.0 '''
+                }
+            }  
+           
+        }
+}
