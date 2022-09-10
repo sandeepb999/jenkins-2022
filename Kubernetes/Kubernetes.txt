@@ -609,3 +609,70 @@ Common errors
 	RunContainerError 
 		- Configmap / secrets are missing. 
 		- Volumes are not available 
+
+
+k8s volumes 
+	persistent volume (pv)
+		- It is a storage space which can be claimend to any pod in the cluster.
+		- These are cluster level object and not bound to namespace.
+		
+		we can control the access to volume in 3 ways:
+			- ReadOnlyMany(ROX) allows being mounted by multiple nodes in read-only mode.
+			- ReadWriteOnce(RWO) allows being mounted by a single node in read-write mode.
+			- ReadWriteMany(RWX) allows multiple nodes to be mounted in read-write mode.
+		
+		Note: If we need write access to volume from multiple pods scheduled in mulitple nodes then use ReadWrtieMany
+		
+	apiVersion: v1
+	kind: PersistentVolume
+	metadata:	
+		name: my-pv
+		labels: 
+			volume: test
+	spec: 
+		storageClassName: local 
+		accessModes: 
+			- ReadWriteOnce
+		capacity: 
+			storage: 2Gi
+		hostPath: 
+		    path: "/home/ubuntu/my-pv-volume" 
+			   
+	Persistent volume claim (pvc)
+		- This is the object used to claim / mount the required amount of storage from persistent volume to any 
+		  pod in the cluster.
+		- After we create the PersistentVolumeClaim, the Kubernetes control plane looks for a PersistentVolume that 
+		  satisfies the claim's requirements. 
+		- If the control plane finds a suitable PersistentVolume with the same StorageClass, it binds the claim to the volume.
+	
+	apiVersion: v1
+	kind: PersistentVolumeClaim
+	metadata:	
+		name: my-pvc
+	spec: 
+		storageClassName: local 
+		accessModes: 
+			- ReadWriteOnce
+		resources: 
+		    requests:
+                storage: 1Gi 
+        	
+	using this in a pod 
+	
+	apiVersion: v1
+	kind: Pod 
+	metadata: 
+		name: my-pvc-pod	
+	spec: 
+        volumes: 
+		    - name: pvc-volume
+			  persistentVolumeClaim: 
+			       claimName: my-pvc # This name should be same the PVC object name
+		containers:
+		   - name: my-nginx 
+			 image: nginx:latest
+			 ports: 
+				- containerPort: 80
+			 volumeMounts: 
+			    - mountPath: "/usr/share/nginx/html"
+				  name: pvc-volume # This name should be same as the above volume name 
