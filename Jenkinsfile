@@ -3,10 +3,8 @@ pipeline {
         stages {
             stage ('Clone') {
                 steps {
-                    git branch: 'main', url: ''
-                        
-                }  
-                    
+                         git branch: 'main', url: 'https://github.com/sandeepb999/jenkins-2022.git'
+                      }
             }
             stage ("Build") {
                 steps {
@@ -20,6 +18,5 @@ pipeline {
                     sh ''' docker run -it -d -p 8062:8080  sandeshhm/my-app-1.0 '''
                 }
             }  
-           
         }
 }
