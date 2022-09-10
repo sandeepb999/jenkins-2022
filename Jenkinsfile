@@ -8,9 +8,11 @@ pipeline {
             }
             stage ("Build") {
                 steps {
-                    sh '''pwd
+                    sh '''
+                    pwd
                     cd  Docker/app/maven
-                    docker build -t sandeepbobba:1.0 .'''
+                    docker build -t sandeepbobba:1.0 .
+                    '''
                 }
             }
             stage ("Docker Run" ) {
