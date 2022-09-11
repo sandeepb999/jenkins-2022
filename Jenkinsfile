@@ -17,7 +17,7 @@ pipeline {
             }
             stage ("Docker Run" ) {
                 steps {
-                    sh ''' docker run -it -d --rm -p 8095:8080 sandeepbobba:1.0 '''
+                    sh ''' docker run -it -d --rm -p 8096:8080 sandeepbobba:1.0 '''
                 }
             }  
         }
