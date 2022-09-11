@@ -14,7 +14,7 @@ pipeline {
                     docker build -t sandeepbobba:1.0 .
                     '''
                 }
-            } 
+            }
             stage ("Docker Run" ) {
                 steps {
                     sh ''' docker run -it -d -p 8093:8080 sandeepbobba:1.0 '''
