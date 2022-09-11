@@ -7,7 +7,7 @@ pipeline {
                       }
             }
             stage ("Build") {
-                steps {
+                steps { 
                     sh '''
                     pwd
                     cd  Docker/app/maven
