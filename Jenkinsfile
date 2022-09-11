@@ -20,5 +20,5 @@ pipeline {
                     sh ''' docker run -it -d -p 8093:8080 sandeepbobba:1.0 '''
                 }
             }  
-        }
+        } 
 }
