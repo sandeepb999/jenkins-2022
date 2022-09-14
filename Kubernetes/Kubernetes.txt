@@ -901,3 +901,226 @@ Startup Probe
 		   port: 8080
 		initialDelaySeconds: 3
 	    periodSeconds: 3   
+
+
+init container 
+	- init containers are the containers that will run completely before starting 
+		  the main app container.
+	- This provides a lifecycle at the startup and we can define things for 
+      initialization purpose.
+    - kubernetes has stopped support of probes in init containers.
+    - These are pod level objects.
+	- we can use this container to have some deply on the startup of the main container.
+	
+	
+	These are some of the scenarios where you can use this pattern
+		- You can use this pattern where your application or main containers need some
+		  prerequisites such as installing some software, database setup, permissions on the file
+		  system before starting.
+		- You can use this pattern where you want to delay the start of the main containers.
+	
+		apiVersion: v1
+		kind: Pod
+		metadata:
+		  name: init-container
+		  labels:
+			 app: init-app
+		spec:
+		  containers:
+			- name: nginx
+			  image: nginx:1.14.2
+			  ports:
+				- containerPort: 80
+			  volumeMounts:
+				- mountPath: "/usr/share/nginx/html"
+				  name: workdir
+		  initContainers:
+			- name: busybox
+			  image: busybox
+			  command: ["/bin/sh"]
+			  args: ["-c","echo '<html><h1>I am init container new version</h1></html>' >> /work-dir/index.html"]
+			  volumeMounts:
+				- mountPath: "/work-dir"
+				  name: workdir
+		  dnsPolicy: Default
+		  volumes:
+			- name: workdir
+			  emptyDir: {}
+		
+		1. login to pod 
+				kubectl exec -it <pod_name> -- /bin/sh 
+		2. apt update && apt install -y curl 
+		3. curl localhost
+			
+		To check the log of particular container out of multiple in a pod 
+			kubectl logs <pod_name> -c <container_name>
+			
+sidecar container 
+	- These are the containers that will run along with the main app container.
+	- we have a app conaitner which is working fine but we want to extend the 
+	  functionality without changing the existing code in main container for this 
+      purpose we can use sidecar container.
+    - we use this container to feed the log data to monitoring tools.	
+	
+	These are some of the scenarios where you can use this pattern
+		- Whenever you want to extend the functionality of the existing single container pod without
+		  touching the existing one.
+		- Whenever you want to enhance the functionality of the existing single container pod
+		  without touching the existing one.
+		- You can use this pattern to synchronize the main container code with the git server pull.
+		- You can use this pattern for sending log events to the external server.
+		- You can use this pattern for network-related tasks.
+		
+	apiVersion: v1
+	kind: Pod
+	metadata:
+	  name: sidecar-container
+	  labels:
+		 app: adaptor-app
+	spec:
+	  containers:
+		- name: nginx
+		  image: nginx:1.14.2
+		  ports:
+			- containerPort: 80
+		  volumeMounts:
+			- mountPath: "/var/log/nginx"
+			  name: logs-dir
+		- name: side-car
+		  image: busybox
+		  command: ["/bin/sh"]
+		  args: ["-c","while true; do cat /var/log/nginx/access.log /var/log/nginx/error.log; sleep 10; done"]
+		  volumeMounts:
+			- mountPath: "/var/log/nginx"
+			  name: logs-dir
+	  dnsPolicy: Default
+	  volumes:
+		- name: logs-dir
+		  emptyDir: {}
+			  
+	
+Adaptor container 
+	- In this patter we use a sidecar container to feed the log data to a monitoring tool.
+	
+	https://www.magalix.com/blog/kubernetes-patterns-the-ambassador-pattern
+
+
+				
+Role-Based access control 
+	- accounts 
+	- Roles 
+	- Binding of roles 
+	
+	Accounts 
+		1. USER ACCOUNT 
+			it is used for human users to control the access to k8s.
+		
+		2. SERVICE ACCOUNT 
+			- It is used by the applications which need the access to the cluster.
+			- Any application running inside or outside the cluster need a service account.
+			
+			- We use a bearer token to authenticate the Service account. Beares token 
+			  is created and attached to SA using secrets.
+		
+		To create a service account 
+			kubectl create sa <account_name>
+			
+			Create a token for sa 
+				apiVersion: v1
+				kind: Secret
+				metadata:
+				  name: test-sa-token
+				  annotations:
+					kubernetes.io/service-account.name: <account_name>
+				type: kubernetes.io/service-account-token
+		
+		use this account in an application 
+			
+			apiVersion: v1
+			kind: Pod
+			metadata:
+			  name: nginx-deployment-new
+			spec:
+				serviceAccountName: test
+			    containers:
+				  - name: nginx
+					image: nginx:1.14.2
+					ports:
+					- containerPort: 80
+			
+Roles 
+	- For a account we can define set of rules to control the access to k8s resource.
+	- Roles are always userdifined which need to be attached to a account.
+	- Roles works for only namepsace. Roles are always defined for a namepsace.
+
+	common fields in roles 
+		apiGroups: List of apis to control the access
+		Subject: User account, serviceaccount or Groups.
+		Resources: K8S objects on which we want to define this roles
+				   ex: pods, deployments etc...
+		Verbs: The operations/actions that can be performed.
+				ex: ["get","list","create","delete","update","watch","patch","proxy"]
+			
+	Create a Role 
+		apiVersion: rbac.authorization.k8s.io/v1
+		kind: Role
+		metadata:
+		  namepsace: default	
+		  name: test-role
+		rules:
+			- apiGroups: [""]
+			  resources: ["pods"]
+			  verbs: ["get", "list"]	
+
+ClusterRole 
+	- this is cluster wide role 
+	
+	Create a ClusterRole 
+		apiVersion: rbac.authorization.k8s.io/v1
+		kind: ClusterRole
+		metadata:
+		  name: test-cluster-role
+		rules:
+			- apiGroups: [""]
+			  resources: ["pods"]
+			  verbs: ["get", "watch", "list"]
+	
+Rolebinding and ClusterRoleBiniding 
+	- This helps to attach a role to a subject (useraccount, serviceaccount or groups)
+	- The only differenece is that we use rolebinding to attach role to account and 
+	  clusterrolebinding to attach cluster role to account.
+	
+	- We use RoleBinding to bind a Role to a ClusterRole  
+	
+	RoleBinding	
+		apiVersion: rbac.authorization.k8s.io/v1
+		kind: RoleBinding
+		metadata:
+		  namespace: default
+		  name: read-pods
+		subjects:
+		- kind: ServiceAccount
+		  name: test
+		  namespace: default
+		roleRef:
+		  apiGroup: rbac.authorization.k8s.io
+		  kind: Role
+		  name: test-role 
+		  
+	ClusterRoleBiniding	  
+		apiVersion: rbac.authorization.k8s.io/v1
+		kind: ClusterRoleBinding
+		metadata:
+		  namespace: default
+		  name: read-pods
+		subjects:
+		- kind: ServiceAccount
+		  name: test
+		  namespace: default
+		roleRef:
+		  apiGroup: rbac.authorization.k8s.io
+		  kind: ClusterRole
+		  name: test-role  
+		  
+	To check the access 
+		kubectl auth can-i list pods --as=system:serviceaccount:<account_namesapce>:<account_name> 
