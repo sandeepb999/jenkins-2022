@@ -1124,3 +1124,86 @@ Rolebinding and ClusterRoleBiniding
 		  
 	To check the access 
 		kubectl auth can-i list pods --as=system:serviceaccount:<account_namesapce>:<account_name> 
+
+USER ACCOUNT
+1.	Create a useraccount 
+	sudo useradd -s /bin/bash -d /home/<username>/ -m -G sudo <username>
+
+2.	Create a private key for the above user created:
+	sudo openssl genrsa -out <username>.key 2048
+
+3.	Create a certificate signing request (CSR). CN is the username and O the group.
+sudo openssl req -new -key <username>.key -out <username>.csr -subj "/CN=<username>/O=sudo"
+
+4.	Sign the CSR with the Kubernetes
+Note: We have to use the CA cert and key which are normally in /etc/kubernetes/pki/
+	
+sudo openssl x509 -req -in <username>.csr \
+  	-CA /etc/kubernetes/pki/ca.crt \
+  	-CAkey /etc/kubernetes/pki/ca.key \
+  	-CAcreateserial \
+  	-out <username>.crt -days 500
+
+5.	Create a “.certs” directory where we are going to store the user public and private key.
+sudo mkdir .certs && sudo mv jean.crt jean.key .certs
+
+6.	Now we need to grant all the created files and directories to the user:
+	sudo chown -R <username>: /home/<username>/
+	sudo vi /etc/sudoers and add <username>   ALL=(ALL:ALL)  ALL	
+
+7.	Change user to <username>
+sudo -u <username> bash
+
+8.	Create kubeconfig for <username>
+kubectl config set-credentials <username> \
+  --client-certificate=/home/<username>/.certs/<username>.crt \
+  --client-key=/home/<username>/.certs/<username>.key
+
+9.	Create context for <username> and cluster
+kubectl config set-context <context-name> \
+--cluster=<cluster-name> \
+--user=<username>
+
+10.	Switch the above created context 
+	kubectl config use-context <context-name>	
+
+11.	Edit the file $HOME/.kube/config  to Add certificate-authority-data: and server: keys under cluster. 
+	apiVersion: v1
+clusters:
+- cluster:
+   certificate-authority-data: {get from /etc/kubernetes/admin.conf}
+   server: {get from /etc/kubernetes/admin.conf}
+  name: kubernetes
+. . . . 
+12.	Check the setup by running the command 
+ 	Kubectl get nodes/pods
+	Note: If “Error from server (Forbidden):” then create the required 
+ roles/clusterRoles for the user <username>
+
+
+How to configure kubectl from outside or from any other machine using service account 
+
+1. Install kubectl on Linux
+STEP1: curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl STEP2: chmod +x ./kubectl
+STEP3: sudo mv ./kubectl /usr/local/bin/kubectl
+To verify installation: kubectl version --client
+2. Setting Kubernetes Cluster parameters
+kubectl config set-cluster <cluster_name> --server=https://<IPorDNS>:<Port> --insecure-skip-tls- verify=<true/false>
+Note: The above command will create the basic config file $HOME/.kube/config
+To know the <IP>:<PORT>: kubectl config view
+To check complete cluster activity: kubectl cluster-info (or) kubectl cluster-info dump
+3. Adding the token of the user to the context
+STEP 1: Copy the secret service account token from the cluster to connect
+Kubectl describe serviceaccount <account_name>
+STEP 2: kubectl config set-credentials <context-name> --token=<copied token>
+4. Creating the Serviceaccount as User
+kubectl config set-context <context-name> --cluster=<cluster_name> --user=<account_name>
+5. Switch the Context to your newly created user-context
+kubectl config use-context <context-name>
+We can have multiple contexts with different cluster service accounts. To list contexts: kubectl config get-contexts
+Best tools
+1. To easy switch between context - kubectx
+Get all contexts: kubectx
+Switch context: kubectx <context-name>
+2. To easy set namespaces default – kubens Get all contexts: kubens
+Switch context: kubens <context-name>
