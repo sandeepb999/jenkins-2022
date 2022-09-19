@@ -1207,3 +1207,134 @@ Get all contexts: kubectx
 Switch context: kubectx <context-name>
 2. To easy set namespaces default – kubens Get all contexts: kubens
 Switch context: kubens <context-name>
+
+
+How to create a pod on a particular worker pod 
+	1. Node selector 
+		- Node selector is a way of binding pod to a worker node or nodes based on the 
+		  node labels.
+		- We cannot use any logical expresions type of selection.  
+	
+		create a label to worker node 
+			kubectl label node <node_name> <key>=<value>
+			
+		Use nodeSelector with the same label created to create pods in the same worker node
+			apiVersion: apps/v1
+			kind: Deployment
+			metadata:
+			  name: nginx-deployment
+			spec:
+			  replicas: 6
+			  selector:
+				matchLabels:
+				  app: ipapp
+			  template:
+				metadata:
+				  labels:
+					app: ipapp
+				spec:
+				  nodeSelector:
+					<key>: <value>
+				  containers:
+				  - name: nginx
+					image: nginx:latest
+					ports:
+					- containerPort: 80
+					
+	2. Node afinity and anti-afinity (Inter-pod affinity)
+		
+		Node affinity 
+			- nodeselector with logical expresions is affinity.
+			- using node affinity we can spread pod across worker nodes based on 
+			  CPU and RAM capacity(memory-intense mode), Availabilty zone (HA mode).
+			
+			- requiredDuringSchedulingIgnoredDuringExecution	
+				The scheduler can't schedule the pod untill unless the rule is met.
+				
+			- preferredDuringSchedulingIgnoredDuringExecution
+				The scheduler tries to fina a node matching the rule, If a matching node 
+				is not available then scheduler still schedules the pod in normal way.
+				
+			- IgnoredDuringExecution
+				If the node labels are changed after the scheduling of pod still the pod 
+                continues to run. 	
+			
+			spec: 
+				containers: 
+						........
+						
+				affinity: 
+					nodeAffinity:
+					  requiredDuringSchedulingIgnoredDuringExecution:
+						nodeSelectorTerms:
+						- matchExpressions:
+						  - key: kubernetes.io/os
+							operator: In
+							values:
+							- linux
+					  preferredDuringSchedulingIgnoredDuringExecution:
+					  - weight: 1
+						preference:
+						  matchExpressions:
+						  - key: label-1
+							operator: In
+							values:
+							- key-1
+					  - weight: 50
+						preference:
+						  matchExpressions:
+						  - key: label-2
+							operator: In
+							values:
+							- key-2
+				
+		node Anti-affinity (Inter-pod Affinity)
+			- This is used to define whether a given pod should or should not be 
+			  scheduled on a particular node based on conditional labels.	
+			
+			spec: 
+				containers: 
+						........
+						
+				affinity: 
+					nodeAntiAffinity:
+					  requiredDuringSchedulingIgnoredDuringExecution:
+						IfNotPresent:
+						- matchExpressions:
+						  - key: <label_key>
+							operator: In
+							values:
+							- <label_value>
+	
+	3. Taints and Tolerations
+		- Taints are used to repel the pods from a specific node.
+		- we can apply taints to worker nodes which tell scheduler to repel all the pods 
+		  except those pods which contains tolerations for the taint.
+		- 2 operators we can use Equal and Exists (If we use Exists, no value required)
+		
+		- We can check the effects also 
+			1) NoSchedule - This taint means unless a pod with toleration the scheduler 
+				will never schedule the pod.
+			2) NoExecute - To delete all the pods except some reuired pods we can use this.
+
+			To taint a worker node
+				kubectl taint nodes <node_name> <taint_key>=<taint_value>:<taint_effect>
+			
+			To delete a taint from worker node
+				(Put a "-" at the end of the command) 
+				kubectl taint nodes <node_name> <taint_key>=<taint_value>:<taint_effect>-
+		
+		
+			spec: 
+				tolerations:
+				  - key: env
+					value: test
+					effect: NoSchedule
+					operator: Equal
+				containers:
+				  - name: nginx
+					image: nginx:latest
+					ports:
+					- containerPort: 80
+
+
