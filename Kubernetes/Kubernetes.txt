@@ -1466,3 +1466,124 @@ Resource quotas and limits
 					limits:
 						memory: "250Mi"
 						cpu: 1
+
+
+Deployment stratergies.	
+	Rolling Update 
+		- By default deployment in k8s uses rolling update stratergy which means if I want use 
+		  this stratergy I don'nt need to specify any parameters in spec file. 
+		- Example: By default k8s automatically decides the percentage of keeing available pods.
+		  usually one out 4 it updates. 
+		
+		- To overrride the default behaviour 
+			spec: 
+				stratergy: 
+					type: RollingUpdate 
+					rollingUpdate: 
+						maxSurge: 1
+						maxUnavailable: 25%
+			
+	Recreate 
+		The Recreate stratergy will bring all the old pods down immediately and the creates 
+		new updated pods to match the replica count.
+			spec: 
+				stratergy: 
+					type: Recreate 
+					
+	Blue/Green deployment
+		- We keep 2 sets of similar environment in which one will be live called blue  
+		  environment and the one which is not live is called as green. 
+		- we update the new changes to blue environment first which is not live and we 
+		  swap/ redirect the traffic from blue to green environment.
+		- Finally blue environment with new updates will become live and we rename it as 
+		  the current new blue environment.
+	
+	Canary release 
+		- A canary release is a software testing technique used to reduce the risk of 
+		  introducing a new software version into production by gradually rolling out 
+		  the change to a small subgroup of users, before rolling it out to the entire 
+		  platform/infrastructure.
+		  
+
+Multi master cluster 	
+	What is the size of the k8s cluster ?
+		- we are manitaining different cluster for different environment
+		- we have one big cluster and environments are maintained through namepsaces
+		- always the count of master nodes should a odd number 
+		- we are using loadbalancer / multiple people are working they may dd the worker nodes 
+		  so I never kept exact count of nodes but on average we have 20 to 25 worker nodes.
+	
+	Why always the number of master nodes is odd number ?
+		- Based on Quoram calculation (n/2+1) we get same quoram failure rate for odd number 
+		  and its next even number of nodes, so it is better to use odd number nodes instead 
+		  of even number and we start with minimum 3 master nodes.
+		- Always tell odd number of nodes (any odd number starting with 3, 5, 7, 9)
+		- Based on the quorum value we choose only odd number of nodes starting with 3 to 
+		  achive better fault tollerance cluster.
+
+
+pod eviction 
+
+	- Kubernetes evict pods if the node resources are running out such as cpu, RAM and storage.
+	- Pod with failed state will be evicted first because they may not running but could still 
+	  be using cluster resources and then k8s runs decision making based.
+	  
+	  Kubernetes looks at two different reasons to make eviction decision: 
+			1. QoS (Quality of Service) class. 
+				For every container in the pod:
+				  - There must be a memory limit and a memory request.
+				  - The memory limit must equal the memory request.
+				  - There must be a CPU limit and a CPU request.
+				  - The CPU limit must equal the CPU request.
+			2. Priority class.
+				- A pod's priority class defines the importance of the pod compared to other 
+				  pods running in the cluster.
+				- based on the priority low to high pods will be evicted.  
+
+
+		  - Cluster autoscaler tools are mostly provided by public cloud providers.	
+
+Ingress
+	Cloud loadbalancer are costly as most of the times billing will be per requests so 
+	to avoid this the kubernetes solution is Ingress, we can run an external software based 
+	load balancer in our cluster.
+		
+	1. Ingress controller 
+		- This controller is used to execute the ingress resources which contains 
+		  routing rules and brings the external traffic based on routing rules to the 
+		  internal service.	
+	    - This controller will automatically monitors the exiting resources and also 
+		  identifies new ingress resources.
+		- This will be a third party controllers (tools) which we need to install it 
+          for one time in our cluster as controller.
+		- We are using nginx as ingress controller.
+
+	2. Ingress resources 
+		- In k8s Ingress resource is type of object which is used to define routing rules 
+		  based on path of incoming traffic to internal cluster service.
+		- api for ingress resource networking.k8s.io/v1 	
+		- Ingress can be used for revers proxy means to expose multiple services under same IP.
+		- Ingress can be used to apply ssl/tls certificates.
+
+		apiVersion: networking.k8s.io/v1	
+		kind: Ingress
+		metadata: 
+            name: my-ingress 
+        spec: 
+			rules: 
+				- host: example.com
+				    http: 
+					   paths: 
+					     - path: /
+						   backend
+				              serviceName: my-svc
+							  servicePort: 80
+						 - path: /login
+						   backend
+				              serviceName: my-login
+							  servicePort: 8090 	  
+							  
+		Note: / 	  -	 means the request from "http://www.example.com"
+			  /login  -	 means the request from "http://www.example.com/login"
+			  
+			  serviceName should be same as the name of the service metadata.
