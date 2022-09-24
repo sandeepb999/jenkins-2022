@@ -1493,10 +1493,10 @@ Deployment stratergies.
 	Blue/Green deployment
 		- We keep 2 sets of similar environment in which one will be live called blue  
 		  environment and the one which is not live is called as green. 
-		- we update the new changes to blue environment first which is not live and we 
+		- we update the new changes to green environment first which is not live and we 
 		  swap/ redirect the traffic from blue to green environment.
-		- Finally blue environment with new updates will become live and we rename it as 
-		  the current new blue environment.
+		- Finally current green environment with new updates we rename it as blue and  
+		  the current blue environment is renamed as green. 
 	
 	Canary release 
 		- A canary release is a software testing technique used to reduce the risk of 
@@ -1587,3 +1587,231 @@ Ingress
 			  /login  -	 means the request from "http://www.example.com/login"
 			  
 			  serviceName should be same as the name of the service metadata.
+
+
+- The main function of a job is to create one or more pods and tracks the success 
+	  status of pods.
+	- Jobs ensure that the specified number of pods is completed successfully and 
+	  when the job is completed pods go to the shutdown state and Job goes to completed state. 
+    - Mainly we use jobs to run pod temporarily till the task is completed and to run 
+	  tasks parallely.	
+	  
+	  apiVersion: batch/v1
+	  kind: Job
+	  metadata:
+	    name: my-job
+	  spec:
+	    template:
+	  	spec:
+	  	  containers:
+	  	  - name: busybox
+	  		image: busybox
+	  		command: ["echo", "This is first job"]
+	  	  restartPolicy: Never
+
+	restartPolicy 
+		- This is applied to pod not for the Job.
+		- There are values,
+			1. Always 
+			   - This is the default restart policy containers will always be restarted if they stop, 
+			     even if they completed successfully. 
+			   - This policy should be used for applications that always needs to be running.
+			2. OnFailure
+			   	  - will always restart containers only if the container process exits with an error code.
+				  - If the container is determined to be unhealthy by a liveness probe it will be restarted.
+				  - we use this policy for applications that need to run successfully & then stop.
+			3. Never
+				  - The pod’s containers will never be restarted, even if the container exits with error code 
+				    or a liveness probe fails. 
+	The different type of jobs or common parameters are,
+	
+	Completions
+		- This is the number of times the job to run. default is 1.
+		- If, completions is 5 then job will run 5 times means 5 pods.
+	  apiVersion: batch/v1
+	  kind: Job
+	  metadata:
+	    name: my-job
+	  spec:
+	  completions: 5
+	    template:
+	  	spec:
+	  	  containers:
+	  	  - name: busybox
+	  		image: busybox
+	  		command: ["echo", "This is first job"]
+	  	  restartPolicy: Never	
+
+	parallelism
+		- By default jobs run serialy so to run jobs parallely we need to use the parallelism.
+		- parallelism is used to set the number of job that need to run prallely.
+		
+	  apiVersion: batch/v1
+	  kind: Job
+	  metadata:
+	    name: my-job
+	  spec:
+	  completions: 5
+	  parallelism: 2
+	    template:
+	  	spec:
+	  	  containers:
+	  	  - name: busybox
+	  		image: busybox
+	  		command: ["echo", "This is first job"]
+	  	  restartPolicy: Never
+
+	backoffLimit
+		- If the container is failing for some reason which affects the completion the job,
+		  then still job creates more pods one after another until it succeeds which will 
+		  simply put a load on the cluster, in this case backoffLimit is used.
+		-  backoffLimit limit ensure the number pods to limit after failure.
+		- backoffLimit: 2, once pods fails for 2 times it won’t create more pods.
+	  
+	  apiVersion: batch/v1
+	  kind: Job
+	  metadata:
+	    name: my-job
+	  spec:
+	  backoffLimit: 2
+	    template:
+	  	spec:
+	  	  containers:
+	  	  - name: busybox
+	  		image: busybox
+	  		command: ["sleep", "60"]
+	  	  restartPolicy: Never	
+
+	activeDeadlineSecond
+		- This is used to set the execution time for pod and if pod takes more than this 
+		  deadline time then pods will be terminated automatically.
+
+	  apiVersion: batch/v1
+	  kind: Job
+	  metadata:
+	    name: my-job
+	  spec:
+	  activeDeadlineSecond: 20
+	    template:
+	  	spec:
+	  	  containers:
+	  	  - name: busybox
+	  		image: busybox
+	  		command: ["sleep", "60"]
+	  	  restartPolicy: Never
+		  
+	Scheduled / CronJob
+		apiVersion: batch/v1
+		kind: CronJob
+		metadata:
+		  name: hello
+		spec:
+		  schedule: "* * * * *"
+		  jobTemplate:
+			spec:
+			  template:
+				spec:
+				  containers:
+				  - name: hello
+					image: busybox:1.28
+					imagePullPolicy: IfNotPresent
+					command:
+					- /bin/sh
+					- -c
+					- date; echo Hello from the Kubernetes cluster
+				  restartPolicy: OnFailure
+		
+		1. SuccessfulJobHistoryLimit and FailedJobHistoryLimit
+			apiVersion: batch/v1
+			kind: CronJob
+			metadata:
+			  name: hello
+			spec:
+			  schedule: "* * * * *"
+			  successfulJobHistoryLimit: 2
+			  failedJobHistoryLimit: 1
+			  jobTemplate:
+				spec:
+				  template:
+					spec:
+					  containers:
+					  - name: hello
+						image: busybox:1.28
+						imagePullPolicy: IfNotPresent
+						command:
+						- /bin/sh
+						- -c
+						- date; echo Hello from the Kubernetes cluster
+					  restartPolicy: OnFailure
+
+
+k8s AutoScale			
+	Horizontal autoscaler 
+		Horizontal Pod Auto-Scaler (HPA)
+			- HPA is used to automatically scale the number of pods based on deployments, replicasets, 
+			  statefulsets or other objects, based on CPU, Memory threshold.
+			- Automatic scaling of the horizontal pod does not apply to objects that cannot be scaled.
+			  ex: DaemonSets.
+			- We need metric server as a soruce for autoscalling.
+
+			Metric server 
+				- Metrics Server collects resource metrics from Kubelets and exposes them in Kubernetes 
+				  API server through Metrics API for use by Horizontal Pod Autoscaler and Vertical Pod Autoscaler.
+				- kubectl top command use Metrics API to list the resource utilization of all pods. 
+				- Metrics Server is not meant for non-autoscaling purposes like we wont forward these metrics 
+				  data to monitoring tools. 
+				  
+			apiVersion: autoscaling/v2beta2
+			kind: HorizontalPodAutoscaler
+			metadata:
+			  name: php-apache-hps
+			spec:
+			  scaleTargetRef:
+				apiVersion: apps/v1
+				kind: Deployment
+				name: php-apache
+			  minReplicas: 1
+			  maxReplicas: 10
+			  metrics:
+			  - type: Resource
+				resource:
+				  name: cpu
+				  target:
+					type: Utilization
+					averageUtilization: 50 
+					
+				---------------- or ----------------
+				
+			kubectl autoscale deployment php-apache — cpu-percent=50 — min=1 — max=10		
+			
+			To list HPA 
+				kubectl get hpa
+			
+			
+		Vertical Pod Auto-Scaler (VPA)	   
+		    - vpa automatically adjusts the CPU and Memory attributes for your Pods.
+			- basically vpa will recreate your pod with the suitable CPU and Memory attributes.
+			- when we describe vpa, it will show recommendations for the Memory/CPU requests, Limits and it can also automatically 
+			  update the limits.
+		  
+		apiVersion: autoscaling.k8s.io/v1
+		kind: VerticalPodAutoscaler
+		metadata:
+		  name: my-app-vpa
+		spec:
+		  targetRef:
+			apiVersion: "apps/v1"
+			kind:       Deployment
+			name:       my-app
+		  updatePolicy:
+			updateMode: "Auto"  
+			
+			
+		Horizontal / Vertical Cluster Auto-Scaler		
+		  - Cluster Autoscaler is a tool that automatically adjusts the size of the Kubernetes 
+			cluster when one of the following conditions is true:
+				1. some pods failed to run in the cluster due to insufficient resources,
+				2. some nodes in the cluster that have been overloaded for an 
+				   extended period and their pods can be placed on other existing nodes.
+				   
+		  - Cluster autoscaler tools are mostly provided by public cloud providers.	
